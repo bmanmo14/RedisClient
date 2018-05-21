@@ -20,6 +20,7 @@ public class RedisClient {
 		final Logger logger = Logger.getLogger(RedisClient.class.getName());
 		try {
 			fh = new FileHandler("/home/ec2-user/RedisClient/RedisClient/src/logger.log");
+			//fh = new FileHandler("/Users/bmouser/Documents/RedisClient/logger.log");
 			SimpleFormatter formatter = new SimpleFormatter();  
 	        fh.setFormatter(formatter);
 	        logger.addHandler(fh);
@@ -29,13 +30,14 @@ public class RedisClient {
 			e.printStackTrace();
 		} 
 		
-		int failed = 0;
-		//System.out.println("Got Here1");
 		// Create a list of sentinels that are currently running on the master at their given ports
 		Set<String> sentinels = new HashSet<String>();
+		Set<HostAndPort> jedisClusterNodes = new HashSet<HostAndPort>();
+		jedisClusterNodes.add(new HostAndPort("rediscluster.bocodh.clustercfg.usw2.cache.amazonaws.com", 6379));
+		//jedisClusterNodes.add(new HostAndPort("127.0.0.1", 6379));
+		JedisCluster cluster = new JedisCluster(jedisClusterNodes);
 		//master = new Jedis("rediscluster.bocodh.clustercfg.usw2.cache.amazonaws.com", 6379);
 		sentinel = new Jedis("127.0.0.1",5000);
-		//System.out.println(master.info());
 		sentinels.add("127.0.0.1:5000");
 		sentinels.add("127.0.0.1:5001");
 		sentinels.add("127.0.0.1:5002");
@@ -60,21 +62,19 @@ public class RedisClient {
 			}
 			
 		}).start();
-		
-		//System.out.println("Got Here2");
+
 		// Continually write message to the server, then cause failover from outside of client and watch how client responds.
 		while(true) {
 		    try{
-			String response = master.set("key","value");
+			String response = cluster.set("key","value");
 			if(response.equals("OK")) {
 				System.out.print("\rSuccessful");
 			}
 			}
-						catch(JedisConnectionException jce) {
+			catch(JedisConnectionException jce) {
 				System.out.print("\rFailover Occuring");
-				//master.close();
-				//master = sentinel_pool.getResource();
-							}
+				master = sentinel_pool.getResource();
+			}
 		}				
 	}
 
