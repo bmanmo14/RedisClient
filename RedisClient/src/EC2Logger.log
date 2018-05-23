@@ -1,0 +1,4 @@
+May 22, 2018 11:54:05 PM RedisClient main
+WARNING: Automatic Failover: Failover Occuring, Unable to Write to Master
+May 22, 2018 11:55:27 PM RedisClient main
+WARNING: Automatic Failover: Failover Finished, Currently Writing to Master
