@@ -19,8 +19,7 @@ public class RedisClient {
 		FileHandler fh;
 		final Logger logger = Logger.getLogger(RedisClient.class.getName());
 		try {
-			fh = new FileHandler("/home/ec2-user/RedisClient/RedisClient/src/logger.log");
-			//fh = new FileHandler("/Users/bmouser/Documents/RedisClient/logger.log");
+			fh = new FileHandler("/Users/bmouser/Documents/RedisClient/logger.log");
 			SimpleFormatter formatter = new SimpleFormatter();  
 	        fh.setFormatter(formatter);
 	        logger.addHandler(fh);
@@ -32,17 +31,12 @@ public class RedisClient {
 		
 		// Create a list of sentinels that are currently running on the master at their given ports
 		Set<String> sentinels = new HashSet<String>();
-		Set<HostAndPort> jedisClusterNodes = new HashSet<HostAndPort>();
-		jedisClusterNodes.add(new HostAndPort("rediscluster.bocodh.clustercfg.usw2.cache.amazonaws.com", 6379));
-		//jedisClusterNodes.add(new HostAndPort("127.0.0.1", 6379));
-		JedisCluster cluster = new JedisCluster(jedisClusterNodes);
-		//master = new Jedis("rediscluster.bocodh.clustercfg.usw2.cache.amazonaws.com", 6379);
 		sentinel = new Jedis("127.0.0.1",5000);
 		sentinels.add("127.0.0.1:5000");
 		sentinels.add("127.0.0.1:5001");
 		sentinels.add("127.0.0.1:5002");
 		
-		// Create a sentinel pool and access the master via the sentinel pool
+		// Create a sentinel pool and access tqhe master via the sentinel pool
 		JedisSentinelPool sentinel_pool = new JedisSentinelPool("mymaster",sentinels);
 		master = sentinel_pool.getResource();
 		
@@ -60,19 +54,29 @@ public class RedisClient {
 			public void run() {
 				sentinel.psubscribe(sub, "*");
 			}
-			
-		}).start();
+			}).start();
 
+
+		boolean previouslyFailing = false;
 		// Continually write message to the server, then cause failover from outside of client and watch how client responds.
 		while(true) {
 		    try{
-			String response = cluster.set("key","value");
+			String response = master.set("key","value");
 			if(response.equals("OK")) {
 				System.out.print("\rSuccessful");
 			}
+			if(previouslyFailing) {
+				previouslyFailing = false;
+				logger.log(Level.WARNING, "Sentinel: FailoverFinished, Currently Writing to Master");
+			}
 			}
 			catch(JedisConnectionException jce) {
-				System.out.print("\rFailover Occuring");
+				if(!previouslyFailing) {
+					logger.log(Level.WARNING, "Sentinel: FailoverOccuring, Unable to Write to Master");
+					System.out.print("\rFailover Occuring");
+				}
+				previouslyFailing = true;
+				master.close();
 				master = sentinel_pool.getResource();
 			}
 		}				
